@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grille d'évaluation – Compte rendu technique BTS MV</title>
+    <!-- Chargement de Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chargement de la police Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        navy: {
+                            50: '#f0f5fa',
+                            100: '#dce7f3',
+                            200: '#bed4ea',
+                            600: '#2b6cb0',
+                            700: '#235a92',
+                            800: '#1F4E79', // Couleur principale demandée
+                            900: '#163858',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Styles spécifiques pour l'impression A4 */
+        @media print {
+            @page {
+                size: A4 portrait;
+                margin: 12mm;
+            }
+            body {
+                background-color: #ffffff !important;
+                color: #111827 !important;
+                font-size: 11pt;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .print-only {
+                display: block !important;
+            }
+            .card-shadow {
+                box-shadow: none !important;
+                border: 1px solid #d1d5db !important;
+            }
+            .criterion-card {
+                break-inside: avoid;
+                padding: 10px 14px !important;
+                margin-bottom: 10px !important;
+            }
+            input, textarea {
+                border: none !important;
+                border-bottom: 1px solid #9ca3af !important;
+                border-radius: 0 !important;
+                background: transparent !important;
+                padding-left: 2px !important;
+                padding-right: 2px !important;
+            }
+            textarea {
+                border: 1px solid #d1d5db !important;
+                border-radius: 6px !important;
+                padding: 8px !important;
+                resize: none !important;
+            }
+            /* Masquer les boutons non sélectionnés à l'impression ou les rendre discrets */
+            .level-btn:not(.selected-level) {
+                opacity: 0.35;
+                border-color: #e5e7eb !important;
+            }
+            .level-btn.selected-level {
+                font-weight: 700 !important;
+                border-width: 2px !important;
+            }
+        }
+
+        /* Transitions fluides */
+        .level-btn {
+            transition: all 0.15s ease-in-out;
+        }
+        .level-btn:active {
+            transform: scale(0.97);
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased min-h-screen pb-12">
+
+    <!-- Notification Toast (remplace alert()) -->
+    <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none no-print">
+        <div class="bg-navy-900 text-white px-5 py-3 rounded-xl shadow-lg flex items-center gap-3 text-sm font-medium">
+            <svg class="w-5 h-5 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+            <span id="toast-message">Action effectuée</span>
+        </div>
+    </div>
+
+    <!-- Modale de confirmation pour la réinitialisation -->
+    <div id="reset-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden items-center justify-center p-4 no-print">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+            <h3 class="text-lg font-bold text-slate-900 mb-2">Réinitialiser l'évaluation ?</h3>
+            <p class="text-sm text-slate-600 mb-6">Toutes les notes saisies, les informations de l'étudiant et les observations seront effacées.</p>
+            <div class="flex justify-end gap-3">
+                <button onclick="closeResetModal()" class="px-4 py-2 rounded-xl text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 transition">
+                    Annuler
+                </button>
+                <button onclick="confirmReset()" class="px-4 py-2 rounded-xl text-sm font-medium text-white bg-rose-600 hover:bg-rose-700 transition">
+                    Tout effacer
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Barre d'actions supérieure (Masquée à l'impression) -->
+    <div class="bg-navy-900 text-white py-2.5 px-4 shadow-md sticky top-0 z-40 no-print">
+        <div class="max-w-5xl mx-auto flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-2 text-xs sm:text-sm font-medium text-navy-100">
+                <span class="bg-navy-800 border border-navy-600 px-2.5 py-1 rounded-lg font-bold text-white">BTS MV</span>
+                <span>Outil d'évaluation ACS – Oral de Projet</span>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+                <button onclick="openResetModal()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium bg-navy-800 hover:bg-rose-700 text-white border border-navy-600 hover:border-rose-600 transition cursor-pointer">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                    Réinitialiser
+                </button>
+                <button onclick="generateAutoComment()" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium bg-amber-500 hover:bg-amber-600 text-slate-950 font-semibold transition cursor-pointer shadow-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    Générer appréciation auto
+                </button>
+                <button onclick="window.print()" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-semibold bg-white text-navy-900 hover:bg-navy-50 transition cursor-pointer shadow-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                    Imprimer / PDF
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Conteneur Principal A4 -->
+    <main class="max-w-5xl mx-auto px-4 sm:px-6 pt-6 space-y-6">
+
+        <!-- EN-TÊTE & IDENTIFICATION ÉTUDIANT -->
+        <header class="bg-white rounded-2xl p-6 card-shadow border border-slate-200">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-slate-200">
+                <div>
+                    <div class="inline-block px-3 py-1 rounded-full bg-navy-50 text-navy-800 text-xs font-bold tracking-wide uppercase mb-2">
+                        Épreuve Orale de Projet • Analyse des Comportements des Systèmes (ACS)
+                    </div>
+                    <h1 class="text-xl sm:text-2xl font-extrabold text-navy-800 tracking-tight">
+                        Grille d'évaluation – Compte rendu technique BTS MV (Système bielle-manivelle)
+                    </h1>
+                </div>
+            </div>
+
+            <!-- Champs d'identification -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-5">
+                <div>
+                    <label for="student-lastname" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Nom de l'étudiant</label>
+                    <input type="text" id="student-lastname" placeholder="Ex : DUPONT" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-navy-800 focus:border-transparent uppercase">
+                </div>
+                <div>
+                    <label for="student-firstname" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Prénom</label>
+                    <input type="text" id="student-firstname" placeholder="Ex : Lucas" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-navy-800 focus:border-transparent">
+                </div>
+                <div>
+                    <label for="student-class" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Classe / Groupe</label>
+                    <input type="text" id="student-class" value="BTS MV" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-navy-800 focus:border-transparent">
+                </div>
+                <div>
+                    <label for="eval-date" class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Date d'évaluation</label>
+                    <input type="date" id="eval-date" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-navy-800 focus:border-transparent">
+                </div>
+            </div>
+        </header>
+
+        <!-- BANDEAU DE RÉSULTAT EN TEMPS RÉEL -->
+        <section id="result-banner" class="bg-white rounded-2xl p-5 sm:p-6 card-shadow border-2 border-navy-800 transition-colors duration-300">
+            <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div class="space-y-1 flex-1">
+                    <div class="flex items-center gap-3">
+                        <h2 class="text-base sm:text-lg font-bold text-slate-800">Résultat global de l'évaluation</h2>
+                        <span id="global-badge" class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide bg-slate-100 text-slate-600">
+                            En attente de notation
+                        </span>
+                    </div>
+                    <p class="text-xs sm:text-sm text-slate-500">
+                        Évaluation basée sur 5 critères (4 points par critère). Ajustement possible par demi-point (0,5 pt).
+                    </p>
+                </div>
+
+                <!-- Affichage de la note sur 20 -->
+                <div class="flex items-center gap-4 self-end md:self-center">
+                    <div class="text-right">
+                        <span class="block text-xs font-semibold text-slate-400 uppercase">Note finale</span>
+                        <div class="flex items-baseline gap-1">
+                            <span id="total-score" class="text-3xl sm:text-4xl font-extrabold text-navy-800">0</span>
+                            <span class="text-lg sm:text-xl font-bold text-slate-400">/ 20</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Barre de progression -->
+            <div class="w-full bg-slate-200 rounded-full h-3 mt-4 overflow-hidden">
+                <div id="progress-bar" class="bg-navy-800 h-3 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+        </section>
+
+        <!-- LISTE DES 5 CRITÈRES INTERACTIFS -->
+        <section class="space-y-4" id="criteria-container">
+            <!-- Généré dynamiquement par JavaScript pour un code propre et maintenable -->
+        </section>
+
+        <!-- ZONE D'OBSERVATIONS ET APPRÉCIATION -->
+        <section class="bg-white rounded-2xl p-6 card-shadow border border-slate-200 space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                    <h2 class="text-base sm:text-lg font-bold text-navy-800">Observations de l'enseignant & Conseils pour l'oral</h2>
+                    <p class="text-xs text-slate-500">Points forts identifiés et éléments à retravailler avant le passage devant le jury.</p>
+                </div>
+                <div class="flex flex-wrap gap-2 no-print">
+                    <button onclick="generateAutoComment()" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-navy-50 text-navy-800 hover:bg-navy-100 border border-navy-200 transition cursor-pointer">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                        Générer une synthèse des observations
+                    </button>
+                    <button onclick="copySummaryToClipboard()" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition cursor-pointer shadow-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                        Copier le bilan (Note + Appréciation)
+                    </button>
+                </div>
+            </div>
+
+            <textarea id="teacher-comments" rows="4" placeholder="Saisissez vos observations ou cliquez sur « Générer une synthèse des observations » pour pré-remplir un bilan personnalisé selon les notes attribuées..." class="w-full p-3.5 rounded-xl border border-slate-300 text-sm text-slate-800 leading-relaxed focus:outline-none focus:ring-2 focus:ring-navy-800 focus:border-transparent"></textarea>
+        </section>
+
+    </main>
+
+    <script>
+        // Définition des 5 critères d'évaluation
+        const CRITERIA_DATA = [
+            {
+                id: 1,
+                title: "1. Exactitude et cohérence des calculs",
+                shortName: "les calculs et la cohérence des unités/régime (6000 tr/min)",
+                indicator: "Les formules (A/C, Vmoy, C = 2R) sont posées avec les bonnes unités. Tous les calculs de la partie 2 sont cohérents avec le régime imposé (6000 tr/min)."
+            },
+            {
+                id: 2,
+                title: "2. Fiabilité des relevés CAO et Méca3D",
+                shortName: "la fiabilité des relevés sur SolidWorks et Méca3D",
+                indicator: "Les valeurs de Vmax, amax et du volume de la bielle sont réellement issues de la simulation SolidWorks / Méca3D (aucune valeur inventée ou approximative)."
+            },
+            {
+                id: 3,
+                title: "3. Exploitation des preuves graphiques",
+                shortName: "l'exploitation des courbes de vitesse et d'accélération",
+                indicator: "Les courbes de vitesse et d'accélération sont insérées, lisibles et permettent de vérifier directement les valeurs maximales reportées dans le tableau."
+            },
+            {
+                id: 4,
+                title: "4. Pertinence et honnêteté de l'analyse",
+                shortName: "la pertinence et la rigueur technique de l'analyse",
+                indicator: "L'interprétation s'appuie uniquement sur les résultats obtenus (courbes, calculs, volumes), sans vocabulaire hors sujet ou invérifiable à l'oral."
+            },
+            {
+                id: 5,
+                title: "5. Clarté et capacité à soutenir à l'oral",
+                shortName: "la clarté du support et l'aptitude à argumenter devant le jury",
+                indicator: "Le document est structuré, soigné, et l'étudiant est capable d'expliquer chaque étape de sa démarche et le compromis cinématique/masse devant le jury."
+            }
+        ];
+
+        // Définition des niveaux de notation (0 à 4)
+        const LEVELS = [
+            { value: 0, label: "Absent", sub: "Non fait", colorClass: "border-slate-300 text-slate-600 hover:bg-slate-100", activeClass: "bg-slate-700 text-white border-slate-700 selected-level" },
+            { value: 1, label: "NI", sub: "Non Interprétable", colorClass: "border-rose-200 text-rose-700 hover:bg-rose-50", activeClass: "bg-rose-600 text-white border-rose-600 selected-level" },
+            { value: 2, label: "Partiel", sub: "Erreurs / Oublis", colorClass: "border-amber-200 text-amber-800 hover:bg-amber-50", activeClass: "bg-amber-500 text-slate-950 border-amber-500 selected-level" },
+            { value: 3, label: "Acquis", sub: "Conforme", colorClass: "border-sky-200 text-sky-800 hover:bg-sky-50", activeClass: "bg-navy-600 text-white border-navy-600 selected-level" },
+            { value: 4, label: "Maîtrisé", sub: "Justifiable à l'oral", colorClass: "border-emerald-200 text-emerald-800 hover:bg-emerald-50", activeClass: "bg-emerald-600 text-white border-emerald-600 selected-level" }
+        ];
+
+        // État des scores (null = non encore évalué, sinon nombre entre 0 et 4 par pas de 0.5)
+        let scores = {
+            1: null,
+            2: null,
+            3: null,
+            4: null,
+            5: null
+        };
+
+        // Initialisation au chargement de la page
+        document.addEventListener('DOMContentLoaded', () => {
+            // Pré-remplir la date du jour
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('eval-date').value = today;
+
+            // Générer les cartes de critères
+            renderCriteria();
+            updateTotalScore();
+        });
+
+        // Rendu HTML des 5 critères
+        function renderCriteria() {
+            const container = document.getElementById('criteria-container');
+            container.innerHTML = '';
+
+            CRITERIA_DATA.forEach(item => {
+                const currentScore = scores[item.id];
+                const card = document.createElement('div');
+                card.className = 'bg-white rounded-2xl p-5 card-shadow border border-slate-200 criterion-card transition-all';
+                
+                // Construction des boutons de niveau
+                const buttonsHtml = LEVELS.map(lvl => {
+                    // Un bouton est considéré comme actif si le score correspond exactement ou à +0.5 près
+                    const isSelected = currentScore !== null && Math.floor(currentScore) === lvl.value;
+                    const btnStyle = isSelected ? lvl.activeClass : `bg-white ${lvl.colorClass}`;
+                    
+                    return `
+                        <button type="button" 
+                            onclick="setCriterionScore(${item.id}, ${lvl.value})"
+                            class="level-btn flex flex-col items-center justify-center px-2.5 py-2 rounded-xl border text-center cursor-pointer ${btnStyle}">
+                            <span class="text-xs sm:text-sm font-bold">${lvl.value} pt${lvl.value > 1 ? 's' : ''} • ${lvl.label}</span>
+                            <span class="text-[10px] opacity-85 hidden sm:inline">${lvl.sub}</span>
+                        </button>
+                    `;
+                }).join('');
+
+                const displayScore = currentScore !== null ? formatNumber(currentScore) : '—';
+                const scoreBadgeColor = getCriterionBadgeColor(currentScore);
+
+                card.innerHTML = `
+                    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                        <!-- Intitulé et indicateur -->
+                        <div class="lg:w-5/12 space-y-1">
+                            <h3 class="text-sm sm:text-base font-bold text-navy-800">${item.title}</h3>
+                            <p class="text-xs text-slate-600 leading-relaxed">${item.indicator}</p>
+                        </div>
+
+                        <!-- Sélecteurs de niveau + ajustement demi-point + score -->
+                        <div class="lg:w-7/12 flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3">
+                            <div class="grid grid-cols-5 gap-1.5 flex-1">
+                                ${buttonsHtml}
+                            </div>
+
+                            <!-- Contrôle précis +/- 0.5 et affichage du score -->
+                            <div class="flex items-center justify-between sm:justify-end gap-2 pl-2 sm:border-l border-slate-200 shrink-0">
+                                <div class="flex flex-col gap-1 no-print">
+                                    <button type="button" onclick="adjustHalfPoint(${item.id}, 0.5)" title="Ajouter 0,5 pt" class="w-6 h-5 flex items-center justify-center rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer">+</button>
+                                    <button type="button" onclick="adjustHalfPoint(${item.id}, -0.5)" title="Retirer 0,5 pt" class="w-6 h-5 flex items-center justify-center rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer">-</button>
+                                </div>
+                                <div class="px-3 py-1.5 rounded-xl font-extrabold text-sm sm:text-base min-w-[68px] text-center ${scoreBadgeColor}">
+                                    ${displayScore} <span class="text-xs font-semibold opacity-75">/ 4</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // Définir la note d'un critère via clic sur bouton
+        function setCriterionScore(criterionId, value) {
+            scores[criterionId] = value;
+            renderCriteria();
+            updateTotalScore();
+        }
+
+        // Ajuster de +/- 0.5 point
+        function adjustHalfPoint(criterionId, delta) {
+            let current = scores[criterionId] === null ? 0 : scores[criterionId];
+            let next = Math.min(4, Math.max(0, current + delta));
+            scores[criterionId] = next;
+            renderCriteria();
+            updateTotalScore();
+        }
+
+        // Formatage propre des nombres (évite .0 inutile, affiche la virgule française)
+        function formatNumber(num) {
+            return Number.isInteger(num) ? num.toString() : num.toFixed(1).replace('.', ',');
+        }
+
+        // Couleur du badge de score par critère
+        function getCriterionBadgeColor(score) {
+            if (score === null) return 'bg-slate-100 text-slate-400';
+            if (score < 2) return 'bg-rose-100 text-rose-800';
+            if (score < 3) return 'bg-amber-100 text-amber-800';
+            return 'bg-emerald-100 text-emerald-800';
+        }
+
+        // Calcul et mise à jour de la note globale sur 20
+        function updateTotalScore() {
+            const values = Object.values(scores);
+            const evaluatedCount = values.filter(v => v !== null).length;
+            const total = values.reduce((acc, val) => acc + (val !== null ? val : 0), 0);
+
+            const scoreEl = document.getElementById('total-score');
+            const badgeEl = document.getElementById('global-badge');
+            const barEl = document.getElementById('progress-bar');
+            const bannerEl = document.getElementById('result-banner');
+
+            scoreEl.textContent = formatNumber(total);
+            const percentage = (total / 20) * 100;
+            barEl.style.width = `${percentage}%`;
+
+            // Réinitialisation des classes de couleur
+            scoreEl.className = 'text-3xl sm:text-4xl font-extrabold transition-colors';
+            barEl.className = 'h-3 rounded-full transition-all duration-300';
+            bannerEl.className = 'bg-white rounded-2xl p-5 sm:p-6 card-shadow border-2 transition-colors duration-300';
+
+            if (evaluatedCount === 0) {
+                scoreEl.classList.add('text-navy-800');
+                barEl.classList.add('bg-navy-800');
+                bannerEl.classList.add('border-navy-800');
+                badgeEl.className = 'px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide bg-slate-100 text-slate-600';
+                badgeEl.textContent = 'En attente de notation';
+            } else if (total < 10) {
+                scoreEl.classList.add('text-rose-600');
+                barEl.classList.add('bg-rose-600');
+                bannerEl.classList.add('border-rose-500');
+                badgeEl.className = 'px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide bg-rose-100 text-rose-800';
+                badgeEl.textContent = 'Insuffisant – À reprendre';
+            } else if (total < 14) {
+                scoreEl.classList.add('text-amber-600');
+                barEl.classList.add('bg-amber-500');
+                bannerEl.classList.add('border-amber-500');
+                badgeEl.className = 'px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide bg-amber-100 text-amber-800';
+                badgeEl.textContent = total < 12 ? 'Fragile – À consolider' : 'Satisfaisant';
+            } else {
+                scoreEl.classList.add('text-emerald-600');
+                barEl.classList.add('bg-emerald-600');
+                bannerEl.classList.add('border-emerald-500');
+                badgeEl.className = 'px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide bg-emerald-100 text-emerald-800';
+                badgeEl.textContent = total >= 16 ? 'Très bien – Prêt pour le jury' : 'Satisfaisant / Solide';
+            }
+        }
+
+        // Génération automatique d'une synthèse des observations
+        function generateAutoComment() {
+            const values = Object.values(scores);
+            if (values.every(v => v === null)) {
+                showToast("Veuillez d'abord évaluer au moins un critère.");
+                return;
+            }
+
+            const total = values.reduce((acc, val) => acc + (val !== null ? val : 0), 0);
+            const strengths = [];
+            const improvements = [];
+
+            CRITERIA_DATA.forEach(item => {
+                const sc = scores[item.id];
+                if (sc !== null) {
+                    if (sc >= 3) {
+                        strengths.push(item.shortName);
+                    } else if (sc <= 2) {
+                        improvements.push(item.shortName);
+                    }
+                }
+            });
+
+            let commentParts = [];
+
+            // Introduction selon la note globale
+            if (total >= 15) {
+                commentParts.push("Très bon travail d'analyse, rigoureux et directement exploitable pour l'épreuve orale de projet.");
+            } else if (total >= 12) {
+                commentParts.push("Ensemble sérieux et cohérent dans la démarche d'étude du système bielle-manivelle.");
+            } else if (total >= 10) {
+                commentParts.push("Travail globalement acceptable mais encore trop superficiel pour convaincre un jury d'examen.");
+            } else {
+                commentParts.push("Compte rendu insuffisant : la démarche technique doit être reprise sérieusement avant l'oral.");
+            }
+
+            // Points forts
+            if (strengths.length > 0) {
+                commentParts.push(`Points forts : maîtrise appréciable sur ${strengths.join(', ')}.`);
+            }
+
+            // Axes d'amélioration
+            if (improvements.length > 0) {
+                commentParts.push(`À retravailler pour l'oral : il faut impérativement consolider ${improvements.join(', ')} afin de pouvoir justifier chaque chiffre devant le jury.`);
+            } else if (strengths.length === 5) {
+                commentParts.push("L'ensemble des résultats est justifié par les preuves CAO/Méca3D et les calculs : continuez ainsi.");
+            }
+
+            document.getElementById('teacher-comments').value = commentParts.join(' ');
+            showToast("Synthèse des observations générée !");
+        }
+
+        // Copie du bilan dans le presse-papier (compatible iFrame via execCommand)
+        function copySummaryToClipboard() {
+            const lastName = document.getElementById('student-lastname').value.trim();
+            const firstName = document.getElementById('student-firstname').value.trim();
+            const total = Object.values(scores).reduce((acc, val) => acc + (val !== null ? val : 0), 0);
+            const comment = document.getElementById('teacher-comments').value.trim();
+
+            const studentStr = (lastName || firstName) ? `${lastName} ${firstName}`.trim() + ' — ' : '';
+            const textToCopy = `${studentStr}Compte rendu Système bielle-manivelle (BTS MV) : ${formatNumber(total)} / 20.\n${comment}`;
+
+            const tempTextarea = document.createElement('textarea');
+            tempTextarea.value = textToCopy;
+            tempTextarea.style.position = 'fixed';
+            tempTextarea.style.left = '-9999px';
+            document.body.appendChild(tempTextarea);
+            tempTextarea.select();
+
+            try {
+                document.execCommand('copy');
+                showToast("Bilan (Note + Appréciation) copié !");
+            } catch (err) {
+                showToast("Impossible de copier automatiquement.");
+            }
+            document.body.removeChild(tempTextarea);
+        }
+
+        // Gestion de la modale de réinitialisation
+        function openResetModal() {
+            const modal = document.getElementById('reset-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeResetModal() {
+            const modal = document.getElementById('reset-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function confirmReset() {
+            scores = { 1: null, 2: null, 3: null, 4: null, 5: null };
+            document.getElementById('student-lastname').value = '';
+            document.getElementById('student-firstname').value = '';
+            document.getElementById('student-class').value = 'BTS MV';
+            document.getElementById('eval-date').value = new Date().toISOString().split('T')[0];
+            document.getElementById('teacher-comments').value = '';
+            
+            renderCriteria();
+            updateTotalScore();
+            closeResetModal();
+            showToast("Grille réinitialisée.");
+        }
+
+        // Affichage des notifications Toast
+        let toastTimeout;
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            const msgEl = document.getElementById('toast-message');
+            msgEl.textContent = message;
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
